@@ -1,0 +1,28 @@
+name: Publish next post
+
+on:
+  schedule:
+    - cron: "0 11 * * 1,3,5"   # Mon/Wed/Fri 19:00 SGT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          MEDIA_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: python3 publish.py next
+      - name: Record posted item
+        run: |
+          git config user.name "list.sg publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add queue
+          git diff --cached --quiet || { git commit -m "Posted $(date -u +%F)"; git push; }
