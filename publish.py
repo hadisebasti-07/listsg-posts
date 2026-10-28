@@ -5,6 +5,7 @@ Publish queued posts to Instagram (Instagram API with Instagram Login).
 Usage:
   python3 publish.py next              # publish the first approved, unposted item
   python3 publish.py next --dry-run    # show what would be posted, call nothing
+  python3 publish.py next --window     # same as next, but only 19:00–21:59 SGT, once per day
   python3 publish.py check <item>      # create upload containers, never publish
   python3 publish.py refresh-token     # print a refreshed 60-day token
   python3 publish.py status            # list the queue
@@ -20,12 +21,14 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 GRAPH = "https://graph.instagram.com/v21.0"
 QUEUE = Path(__file__).parent / "queue"
 MEDIA_EXT = {".jpg", ".jpeg", ".mp4", ".mov"}
+SGT = timezone(timedelta(hours=8))
+WINDOW = range(19, 22)  # SGT hours a scheduled run may post in
 
 
 def token() -> str:
@@ -140,7 +143,22 @@ def next_item() -> Path | None:
     return None
 
 
-def cmd_next(dry: bool) -> None:
+def posted_today() -> bool:
+    today = datetime.now(SGT).date()
+    return any(datetime.fromisoformat(m["posted_at"]).astimezone(SGT).date() == today
+               for m in map(meta, items()) if m.get("posted_at"))
+
+
+def cmd_next(dry: bool, window: bool) -> None:
+    if window:
+        now = datetime.now(SGT)
+        # GitHub cron runs late, so the workflow fires hourly and only posts in the window
+        if now.hour not in WINDOW:
+            print(f"{now:%H:%M} SGT is outside {WINDOW.start}:00–{WINDOW.stop}:00 — skipping.")
+            return
+        if posted_today():
+            print("Already posted today — skipping.")
+            return
     item = next_item()
     if not item:
         # non-zero exit makes GitHub email the repo owner
@@ -182,7 +200,7 @@ if __name__ == "__main__":
     if not a:
         sys.exit(__doc__)
     if a[0] == "next":
-        cmd_next("--dry-run" in a)
+        cmd_next("--dry-run" in a, "--window" in a)
     elif a[0] == "check" and len(a) > 1:
         cmd_check(a[1])
     elif a[0] == "refresh-token":
