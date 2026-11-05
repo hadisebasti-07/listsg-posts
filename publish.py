@@ -6,6 +6,7 @@ Usage:
   python3 publish.py next              # publish the first approved, unposted item
   python3 publish.py next --dry-run    # show what would be posted, call nothing
   python3 publish.py next --window     # same as next, but only 19:00–21:59 SGT, once per day
+  python3 publish.py next --once       # same as next, but skip if something already posted today (SGT)
   python3 publish.py check <item>      # create upload containers, never publish
   python3 publish.py refresh-token     # print a refreshed 60-day token
   python3 publish.py status            # list the queue
@@ -149,16 +150,16 @@ def posted_today() -> bool:
                for m in map(meta, items()) if m.get("posted_at"))
 
 
-def cmd_next(dry: bool, window: bool) -> None:
+def cmd_next(dry: bool, window: bool, once: bool) -> None:
     if window:
         now = datetime.now(SGT)
         # GitHub cron runs late, so the workflow fires hourly and only posts in the window
         if now.hour not in WINDOW:
             print(f"{now:%H:%M} SGT is outside {WINDOW.start}:00–{WINDOW.stop}:00 — skipping.")
             return
-        if posted_today():
-            print("Already posted today — skipping.")
-            return
+    if (window or once) and posted_today():
+        print("Already posted today — skipping.")
+        return
     item = next_item()
     if not item:
         # non-zero exit makes GitHub email the repo owner
@@ -200,7 +201,7 @@ if __name__ == "__main__":
     if not a:
         sys.exit(__doc__)
     if a[0] == "next":
-        cmd_next("--dry-run" in a, "--window" in a)
+        cmd_next("--dry-run" in a, "--window" in a, "--once" in a)
     elif a[0] == "check" and len(a) > 1:
         cmd_check(a[1])
     elif a[0] == "refresh-token":
