@@ -2,7 +2,7 @@
 # Usage: ig-queue/queue_add.sh <carousel-dir>
 # Copies <carousel-dir>/out/upload into ig-queue/queue/NN-<name>/ (next free NN),
 # converts PNG slides to JPEG (the API only accepts JPEG images) and writes
-# post.json with approved=false.
+# post.json with approved=true.
 set -e
 SRC=${1%/}; Q="$(dirname "$0")/queue"
 [ -d "$SRC/out/upload" ] || { echo "No $SRC/out/upload — run split-carousel.sh first"; exit 1; }
@@ -18,5 +18,5 @@ for f in "$SRC"/out/upload/*; do
     *) cp "$f" "$D/" ;;
   esac
 done
-printf '{\n  "source": "%s",\n  "approved": false\n}\n' "$(basename "$SRC")" > "$D/post.json"
+printf '{\n  "source": "%s",\n  "approved": true\n}\n' "$(basename "$SRC")" > "$D/post.json"
 echo "Queued $D: $(ls "$D" | tr '\n' ' ')"
