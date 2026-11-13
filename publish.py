@@ -13,6 +13,7 @@ Usage:
 
 Env: IG_ACCESS_TOKEN, MEDIA_BASE (public URL of this repo's Pages site).
 Each queue/<item>/ holds 01..NN media (.jpg/.mp4), caption.txt and post.json.
+A single .mp4 posts as a Reel; 2-10 files post as a carousel.
 """
 
 import json
@@ -109,7 +110,15 @@ def build(item: Path) -> str:
     if not files:
         raise RuntimeError(f"{item.name}: no media")
     if len(files) == 1:
-        raise RuntimeError("single-media posts not supported yet")
+        f = files[0]
+        if f.suffix.lower() not in (".mp4", ".mov"):
+            raise RuntimeError(f"{item.name}: single-image posts not supported yet")
+        # A Reel: one container, shared to the feed, cover taken from frame 0 (the hook)
+        cid = api("POST", "me/media", media_type="REELS", video_url=media_url(item, f),
+                  caption=caption, share_to_feed="true", thumb_offset="0")["id"]
+        print(f"  {f.name} → reel container {cid}")
+        wait_ready(cid, f.name, timeout=900)
+        return cid
     if len(files) > 10:
         raise RuntimeError(f"{item.name}: {len(files)} files, carousel max is 10")
     kids = []
@@ -183,7 +192,7 @@ def cmd_next(dry: bool, window: bool, once: bool) -> None:
 def cmd_check(name: str) -> None:
     item = QUEUE / name
     top = build(item)
-    print(f"All containers accepted (carousel {top}). Nothing was published; "
+    print(f"All containers accepted (top container {top}). Nothing was published; "
           "unpublished containers expire after 24 h.")
 
 

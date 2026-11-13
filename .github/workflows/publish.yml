@@ -2,8 +2,8 @@ name: Publish next post
 
 on:
   schedule:
-    - cron: "0 8-13 * * 1,3,5"   # Mon/Wed/Fri hourly 16:00–21:00 SGT; --window posts once, 19:00–21:59
-  workflow_dispatch:   # cron-job.org calls this at 19:00 SGT Mon/Wed/Fri
+    - cron: "0 8-13 * * 1-5"   # Mon–Fri hourly 16:00–21:00 SGT; --window posts once, 19:00–21:59
+  workflow_dispatch:   # cron-job.org calls this at 19:00 SGT (set it to Mon–Fri)
     inputs:
       force:
         description: "Post even if something already went out today"
